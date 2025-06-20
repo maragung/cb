@@ -263,7 +263,7 @@ export default function Home() {
             </Head>
 
             <h1 className="text-4xl font-extrabold text-center text-blue-800 mb-8 rounded-lg p-4 bg-white shadow-lg">
-                Namada Account Balances
+                Account Balances
             </h1>
 
             {error && (
