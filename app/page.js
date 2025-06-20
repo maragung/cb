@@ -233,6 +233,7 @@ export default function Home() {
     const [searchTerm, setSearchTerm] = useState(''); // State for search term
     const [sortColumn, setSortColumn] = useState(null); // State for current sort column
     const [sortDirection, setSortDirection] = useState('asc'); // 'asc' or 'desc'
+    const [copyMessage, setCopyMessage] = useState(''); // State for copy confirmation message
 
     useEffect(() => {
         // Initialize balances with the parsed initial data
@@ -268,6 +269,40 @@ export default function Home() {
         }
     };
 
+    // Function to copy text to clipboard
+    const copyToClipboard = (text) => {
+        if (!text || text === 'N/A') {
+            setCopyMessage('No address to copy!');
+            setTimeout(() => setCopyMessage(''), 2000);
+            return;
+        }
+        try {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed'; // Prevent scrolling to bottom of page in iOS.
+            textarea.style.left = '-9999px';
+            textarea.style.top = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            document.execCommand('copy'); // Fallback for older browsers or if navigator.clipboard not available
+            document.body.removeChild(textarea);
+
+            setCopyMessage('Address copied!');
+            setTimeout(() => setCopyMessage(''), 2000); // Clear message after 2 seconds
+        } catch (err) {
+            console.error('Failed to copy text: ', err);
+            setCopyMessage('Failed to copy address!');
+            setTimeout(() => setCopyMessage(''), 2000);
+        }
+    };
+
+    // Helper to format addresses for display (first 3, last 4 digits)
+    const formatAddressForDisplay = (address) => {
+        if (!address || address.length < 7) return address; // Return as is if too short
+        return `${address.substring(0, 3)}...${address.substring(address.length - 4)}`;
+    };
+
     // Filtered and sorted balances
     const sortedAndFilteredBalances = useMemo(() => {
         let workableBalances = [...balances];
@@ -278,7 +313,7 @@ export default function Home() {
             workableBalances = workableBalances.filter(entry =>
                 entry.name.toLowerCase().includes(lowerCaseSearchTerm) ||
                 (entry.tnamAddress && entry.tnamAddress.toLowerCase().includes(lowerCaseSearchTerm)) ||
-                (entry.tpknamAddress && entry.tpknamAddress.toLowerCase().includes(lowerCaseSearchTerm)) // Include TPKNAM in search
+                (entry.tpknamAddress && entry.tpknamAddress.toLowerCase().includes(lowerCaseSearchTerm))
             );
         }
 
@@ -290,8 +325,9 @@ export default function Home() {
 
                 // Special handling for numeric columns that might be strings or 'Loading...'
                 if (sortColumn === 'initialAllocation' || sortColumn === 'currentBalance') {
-                    aValue = parseFloat(aValue);
-                    bValue = parseFloat(bValue);
+                    // Ensure currentBalance is treated as a number for sorting
+                    aValue = (aValue === 'Loading...' || aValue === 'N/A' || aValue === 'Error') ? -Infinity : parseFloat(aValue);
+                    bValue = (bValue === 'Loading...' || bValue === 'N/A' || bValue === 'Error') ? -Infinity : parseFloat(bValue);
 
                     // Handle NaN values during sorting: push them to the end
                     if (isNaN(aValue) && isNaN(bValue)) return 0;
@@ -340,13 +376,20 @@ export default function Home() {
             </Head>
 
             <h1 className="text-4xl font-extrabold text-center text-blue-800 mb-8 rounded-lg p-4 bg-white shadow-lg">
-                Account Balances
+                CB Account Balances
             </h1>
 
             {error && (
                 <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-4" role="alert">
                     <strong className="font-bold">Error!</strong>
                     <span className="block sm:inline"> {error}</span>
+                </div>
+            )}
+
+            {/* Copy message display */}
+            {copyMessage && (
+                <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-md transition-opacity duration-300 z-50">
+                    {copyMessage}
                 </div>
             )}
 
@@ -414,11 +457,19 @@ export default function Home() {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 rounded-bl-lg">
                                             {entry.name}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-mono">
-                                            {entry.tpknamAddress || 'N/A'}
+                                        <td
+                                            className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-mono cursor-pointer hover:underline"
+                                            onClick={() => copyToClipboard(entry.tpknamAddress)}
+                                            title={entry.tpknamAddress || 'N/A'} // Show full address on hover
+                                        >
+                                            {formatAddressForDisplay(entry.tpknamAddress) || 'N/A'}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-mono">
-                                            {entry.tnamAddress || 'N/A'}
+                                        <td
+                                            className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-mono cursor-pointer hover:underline"
+                                            onClick={() => copyToClipboard(entry.tnamAddress)}
+                                            title={entry.tnamAddress || 'N/A'} // Show full address on hover
+                                        >
+                                            {formatAddressForDisplay(entry.tnamAddress) || 'N/A'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                                             {/* Display formatted number for initial allocation */}
